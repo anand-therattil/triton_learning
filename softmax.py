@@ -25,11 +25,11 @@ def _softmax_kernel(
     tl.store(output_ptr + offset, softmax_output, mask=mask)
 
 
-def softmax(input_tensor):
+def softmax(input_tensor, BLOCK_SIZE=1024):
     assert input_tensor.device.type == 'cuda', "Input tensor must be on CUDA device"
 
     N = input_tensor.numel()
-    BLOCK_SIZE = 1024
+    # BLOCK_SIZE = 1024
     grid = lambda meta: (triton.cdiv(N, meta['BLOCK_SIZE']),)
     output_tensor = torch.empty_like(input_tensor)
 
@@ -66,3 +66,15 @@ for i in length:
     torchscript_time = (time.time() - start_time) / 10
     print(f"TorchScript add time for length {i}: {torchscript_time*1000:.6f} ms")
     print("-" * 50)
+
+
+block_size_list = [256, 512, 1024, 2048, 4096, 8192]
+for i in block_size_list:
+    x = torch.randn(10000000, device="cuda",dtype=torch.float32)
+    import time
+    start_time = time.time()
+    for _ in range(10):
+        z = softmax(x, BLOCK_SIZE=i)
+    triton_time = (time.time() - start_time) / 10
+    print(f"Triton add time for block size {i}: {triton_time*1000:.6f} ms")
+
